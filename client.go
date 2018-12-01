@@ -1,11 +1,14 @@
 package main
 
 import (
-	statsd "github.com/DataDog/datadog-go/statsd"
-	log "github.com/Sirupsen/logrus"
+	"errors"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
-	"errors"
+
+	statsd "github.com/DataDog/datadog-go/statsd"
+	log "github.com/Sirupsen/logrus"
 )
 
 const sampleRate = 1.0
@@ -27,6 +30,8 @@ type Client struct {
 	*statsd.Client
 	ExcludedTags map[string]bool
 }
+
+var statusCode *regexp.Regexp = regexp.MustCompile(`^(?P<Family>\d)\d\d`)
 
 func statsdClient(addr string) (*Client, error) {
 
@@ -51,7 +56,6 @@ func (c *Client) sendToStatsd(in chan *logMetrics) {
 			"tags":   data.tags,
 			"prefix": data.prefix,
 		}).Debug("logMetrics received")
-
 
 		if data.typ == routerMsg {
 			c.sendRouterMsg(data)
@@ -92,11 +96,23 @@ func (c *Client) extractTags(tags []string, permittedTags []string, metrics map[
 			tags = append(tags, mk+":"+v.Val)
 		}
 	}
+	sort.Strings(tags)
+	return tags
+}
+
+func addStatusFamilyToTags(data *logMetrics, tags []string) []string {
+	if val, ok := data.metrics["status"]; ok {
+		match := statusCode.FindStringSubmatch(val.Val)
+		if len(match) > 1 {
+			tags = append(tags, "statusFamily:"+match[1]+"xx")
+		}
+	}
 	return tags
 }
 
 func (c *Client) sendRouterMsg(data *logMetrics) {
 	tags := c.extractTags(*data.tags, routerMetricsKeys, data.metrics)
+	tags = addStatusFamilyToTags(data, tags)
 
 	log.WithFields(log.Fields{
 		"app":    *data.app,
@@ -123,6 +139,20 @@ func (c *Client) sendRouterMsg(data *logMetrics) {
 		return
 	}
 
+	bytes, err := strconv.ParseFloat(data.metrics["bytes"].Val, 10)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"type":   "router",
+			"metric": "bytes",
+			"err":    err,
+		}).Info("Could not parse metric value")
+		return
+	}
+	// https://devcenter.heroku.com/articles/http-routing
+	err = c.Histogram(*data.prefix+"heroku.router.response.bytes", bytes, tags, sampleRate)
+	if err != nil {
+		log.WithField("error", err).Info("Failed to send Histogram")
+	}
 	err = c.Histogram(*data.prefix+"heroku.router.request.connect", conn, tags, sampleRate)
 	if err != nil {
 		log.WithField("error", err).Info("Failed to send Histogram")
@@ -198,10 +228,14 @@ func (c *Client) sendScalingMsg(data *logMetrics) {
 
 func (c *Client) sendMetric(metricType string, metricName string, value float64, tags []string) error {
 	switch metricType {
-	case "metric", "sample": return c.Gauge(metricName, value, tags, sampleRate)
-	case "measure": return c.Histogram(metricName, value, tags, sampleRate)
-	case "count": return c.Count(metricName, int64(value), tags, sampleRate)
-	default: return errors.New("Unknown metric type"+metricType)
+	case "metric", "sample":
+		return c.Gauge(metricName, value, tags, sampleRate)
+	case "measure":
+		return c.Histogram(metricName, value, tags, sampleRate)
+	case "count":
+		return c.Count(metricName, int64(value), tags, sampleRate)
+	default:
+		return errors.New("Unknown metric type" + metricType)
 	}
 }
 

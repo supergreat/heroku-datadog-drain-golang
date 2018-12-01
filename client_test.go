@@ -16,7 +16,7 @@ var statsdTests = []struct {
 	Expected []string
 }{
 	{
-		cnt: 2,
+		cnt: 3,
 		m: logMetrics{
 			routerMsg,
 			&app,
@@ -27,13 +27,16 @@ var statsdTests = []struct {
 				"path":    {"/foo", ""},
 				"connect": {"1", "ms"},
 				"service": {"37", "ms"},
+				"status":  {"401", ""},
+				"bytes":   {"244000", ""},
 				"garbage": {"bar", ""},
 			},
 			events,
 		},
 		Expected: []string{
-			"prefix.heroku.router.request.connect:1.000000|h|#tag1,tag2,at:info",
-			"prefix.heroku.router.request.service:37.000000|h|#tag1,tag2,at:info",
+			"prefix.heroku.router.response.bytes:244000.000000|h|#at:info,status:401,tag1,tag2,statusFamily:4xx",
+			"prefix.heroku.router.request.connect:1.000000|h|#at:info,status:401,tag1,tag2,statusFamily:4xx",
+			"prefix.heroku.router.request.service:37.000000|h|#at:info,status:401,tag1,tag2,statusFamily:4xx",
 		},
 	},
 	{
@@ -114,7 +117,7 @@ var statsdTests = []struct {
 			events,
 		},
 		Expected: []string{
-			"prefix.heroku.dyno.load.avg.1m:0.010000|g|#tag1,tag2,source:web1",
+			"prefix.heroku.dyno.load.avg.1m:0.010000|g|#source:web1,tag1,tag2",
 		},
 	},
 	{
@@ -145,8 +148,7 @@ var statsdTests = []struct {
 			&app,
 			&tags,
 			&prefix,
-			map[string]logValue{
-			},
+			map[string]logValue{},
 			[]string{
 				"Release v1 created by foo@bar",
 			},
@@ -155,7 +157,6 @@ var statsdTests = []struct {
 			"_e{13,29}:app/api: test|Release v1 created by foo@bar|#tag1,tag2",
 		},
 	},
-
 }
 
 func TestStatsdClient(t *testing.T) {

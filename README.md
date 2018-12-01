@@ -1,3 +1,4 @@
+[![wercker status](https://app.wercker.com/status/60e477c04d28cfc54f0be48d480b80f2/s/master "wercker status")](https://app.wercker.com/project/byKey/60e477c04d28cfc54f0be48d480b80f2)
 [![Build Status](https://travis-ci.org/apiaryio/heroku-datadog-drain-golang.svg?branch=master)](https://travis-ci.org/apiaryio/heroku-datadog-drain-golang)
 
 # Heroku Datadog Drain
@@ -12,6 +13,7 @@ Funnel metrics from multiple Heroku apps into DataDog using statsd.
 - Application errors
 - Custom metrics
 - Heroku Dyno [runtime metrics](https://devcenter.heroku.com/articles/log-runtime-metrics)
+- (beta) Heroku Runtime Language Metrics - we add support for [golang](https://devcenter.heroku.com/articles/language-runtime-metrics-go#getting-started) used in Heroku, next step add this to send to Datadog too for self monitoring app.
 
 ## Get Started
 
@@ -40,6 +42,14 @@ heroku config:set HEROKU_APP_NAME=$(heroku apps:info|grep ===|cut -d' ' -f2)
 heroku config:add DATADOG_API_KEY=<your-Datadog-API-key>
 ```
 
+Don't forget [set right golang version](https://devcenter.heroku.com/articles/go-support#go-versions).
+
+```
+heroku config:add GOVERSION=go1.11
+```
+
+You can use specific settings for [Go modules](https://github.com/heroku/heroku-buildpack-go#go-module-specifics)
+
 ### Deploy to Heroku.
 
 ```
@@ -66,7 +76,7 @@ EXCLUDED_TAGS: path,host  # Optional. Recommended to solve problem with tags lim
 ```
 Note that the capitalized `<APP-NAME>` and `<YOUR-APP-SLUG>` appearing above indicate that your application name and slug should also be in full caps. For example, to set the password for an application named `my-app`, you would need to specify `heroku config:set ALLOWED_APPS=my-app MY-APP_PASSWORD=example_password`
 
-The rationale for `EXCLUDED_TAGS` is that the `path=` tag in Heroku logs includes the full HTTP path - including, for instance, query parameters. This makes is very easy to swarm Datadog with numerous distinct tag/value pairs; and Datadog has a hard limit of 1000 such distinct pairs. When the limit is breached, they blacklist the entire metric.
+The rationale for `EXCLUDED_TAGS` is that the `path=` tag in Heroku logs includes the full HTTP path - including, for instance, query parameters. This makes very easy to swarm Datadog with numerous distinct tag/value pairs; and Datadog has a hard limit of 1000 such distinct pairs. When the limit is breached, they blacklist the entire metric.
 
 ## Heroku settings
 
@@ -87,7 +97,7 @@ app web.1 - info: responseLogger: metric#tag#route=/parser metric#request_id=117
 ```
 We support:
 
- * `metric#` and `sample#` for gauges 
+ * `metric#` and `sample#` for gauges
  * `metric#tag` for tags.
  * `count#` for counter increments
  * `measure#` for histograms
