@@ -24,7 +24,6 @@ var statsdTests = []struct {
 			&prefix,
 			map[string]logValue{
 				"at":      {"info", ""},
-				"path":    {"/foo", ""},
 				"connect": {"1", "ms"},
 				"service": {"37", "ms"},
 				"status":  {"401", ""},
@@ -42,71 +41,7 @@ var statsdTests = []struct {
 	{
 		cnt: 1,
 		m: logMetrics{
-			metricsTag,
-			&app,
-			&tags,
-			&prefix,
-			map[string]logValue{
-				"metric#load_avg_2m": {"0.01", ""},
-			},
-			events,
-		},
-		Expected: []string{
-			"prefix.app.metric.load.avg.2m:0.010000|g|#tag1,tag2",
-		},
-	},
-	{
-		cnt: 1,
-		m: logMetrics{
-			metricsTag,
-			&app,
-			&tags,
-			&prefix,
-			map[string]logValue{
-				"sample#load_avg_1m": {"0.01", ""},
-			},
-			events,
-		},
-		Expected: []string{
-			"prefix.app.metric.load.avg.1m:0.010000|g|#tag1,tag2",
-		},
-	},
-	{
-		cnt: 1,
-		m: logMetrics{
-			metricsTag,
-			&app,
-			&tags,
-			&prefix,
-			map[string]logValue{
-				"count#clicks": {"1", ""},
-			},
-			events,
-		},
-		Expected: []string{
-			"prefix.app.metric.clicks:1|c|#tag1,tag2",
-		},
-	},
-	{
-		cnt: 1,
-		m: logMetrics{
-			metricsTag,
-			&app,
-			&tags,
-			&prefix,
-			map[string]logValue{
-				"measure#temperature": {"1.3", ""},
-			},
-			events,
-		},
-		Expected: []string{
-			"prefix.app.metric.temperature:1.300000|h|#tag1,tag2",
-		},
-	},
-	{
-		cnt: 1,
-		m: logMetrics{
-			sampleMsg,
+			dynoSampleMsg,
 			&app,
 			&tags,
 			&prefix,
@@ -117,7 +52,7 @@ var statsdTests = []struct {
 			events,
 		},
 		Expected: []string{
-			"prefix.heroku.dyno.load.avg.1m:0.010000|g|#source:web1,tag1,tag2",
+			"prefix.heroku.dyno.load_avg_1m:0.010000|g|#source:web1,tag1,tag2",
 		},
 	},
 	{

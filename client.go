@@ -16,15 +16,15 @@ const sampleRate = 1.0
 const (
 	routerMsg int = iota
 	scalingMsg
-	sampleMsg
-	metricsTag
+	dynoSampleMsg
+	pgSampleMsg
+	redisSampleMsg
 	releaseMsg
 )
 
-var routerMetricsKeys = []string{"dyno", "method", "status", "path", "host", "code", "desc", "at"}
-var sampleMetricsKeys = []string{"source"}
+var routerMetricsKeys = []string{"dyno", "method", "status", "host", "code", "desc", "at"}
+var sampleMetricsKeys = []string{"source", "dyno"}
 var scalingMetricsKeys = []string{"mailer", "web"}
-var customMetricsKeys = []string{"media_type", "output_type", "route"}
 
 type Client struct {
 	*statsd.Client
@@ -59,13 +59,15 @@ func (c *Client) sendToStatsd(in chan *logMetrics) {
 
 		if data.typ == routerMsg {
 			c.sendRouterMsg(data)
-		} else if data.typ == sampleMsg {
-			c.sendSampleMsg(data)
+		} else if data.typ == dynoSampleMsg {
+			c.sendSampleMsg(data, "dyno")
+		} else if data.typ == pgSampleMsg {
+			c.sendSampleMsg(data, "postgres")
+		} else if data.typ == redisSampleMsg {
+			c.sendSampleMsg(data, "redis")
 		} else if data.typ == scalingMsg {
 			c.sendEvents(*data.app, "heroku", data.events, *data.tags)
 			c.sendScalingMsg(data)
-		} else if data.typ == metricsTag {
-			c.sendMetricsWithTags(data)
 		} else if data.typ == releaseMsg {
 			c.sendEvents(*data.app, "app", data.events, *data.tags)
 		} else {
@@ -169,7 +171,7 @@ func (c *Client) sendRouterMsg(data *logMetrics) {
 	}
 }
 
-func (c *Client) sendSampleMsg(data *logMetrics) {
+func (c *Client) sendSampleMsg(data *logMetrics, sampleType string) {
 	tags := c.extractTags(*data.tags, sampleMetricsKeys, data.metrics)
 
 	log.WithFields(log.Fields{
@@ -179,11 +181,12 @@ func (c *Client) sendSampleMsg(data *logMetrics) {
 	}).Debug("sendSampleMsg")
 
 	for k, v := range data.metrics {
+
 		if strings.Index(k, "#") != -1 {
-			m := strings.Replace(strings.Split(k, "#")[1], "_", ".", -1)
+			m := strings.Replace(strings.Split(k, "#")[1], "-", "_", -1)
 			vnum, err := strconv.ParseFloat(v.Val, 10)
 			if err == nil {
-				err = c.Gauge(*data.prefix+"heroku.dyno."+m, vnum, tags, sampleRate)
+				err = c.Gauge(*data.prefix+"heroku."+sampleType+"."+m, vnum, tags, sampleRate)
 				if err != nil {
 					log.WithField("error", err).Info("Failed to send Gauge")
 				}
@@ -236,50 +239,5 @@ func (c *Client) sendMetric(metricType string, metricName string, value float64,
 		return c.Count(metricName, int64(value), tags, sampleRate)
 	default:
 		return errors.New("Unknown metric type" + metricType)
-	}
-}
-
-func (c *Client) sendMetricsWithTags(data *logMetrics) {
-	tags := *data.tags
-
-Tags:
-	for k, v := range data.metrics {
-		if strings.Index(k, "tag#") != -1 {
-			if _, err := strconv.Atoi(v.Val); err != nil {
-				m := strings.Replace(strings.Split(k, "tag#")[1], "_", ".", -1)
-				for _, mk := range customMetricsKeys {
-					if m == mk {
-						tags = append(tags, mk+":"+v.Val)
-						continue Tags
-					}
-				}
-			}
-		}
-	}
-
-	log.WithFields(log.Fields{
-		"app":    *data.app,
-		"tags":   tags,
-		"prefix": *data.prefix,
-	}).Debug("sendMetricTag")
-
-	for k, v := range data.metrics {
-		if strings.Index(k, "#") != -1 {
-			if vnum, err := strconv.ParseFloat(v.Val, 10); err == nil {
-				keySplit := strings.Split(k, "#")
-				metricType := keySplit[0]
-				m := strings.Replace(keySplit[1], "_", ".", -1)
-				err = c.sendMetric(metricType, *data.prefix+"app.metric."+m, vnum, tags)
-				if err != nil {
-					log.WithField("error", err).Warning("Failed to send Gauge")
-				}
-			} else {
-				log.WithFields(log.Fields{
-					"type":   "metrics",
-					"metric": k,
-					"err":    err,
-				}).Debug("Could not parse metric value")
-			}
-		}
 	}
 }
