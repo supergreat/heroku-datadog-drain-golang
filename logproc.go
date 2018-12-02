@@ -65,10 +65,18 @@ func parseMetrics(typ int, ld *logData, data *string, out chan *logMetrics) {
 		}).Warn()
 		return
 	}
-	if source, ok := lm.metrics["source"]; ok {
-		tags := append(*lm.tags, "type:"+dynoNumber.ReplaceAllString(source.Val, ""))
-		lm.tags = &tags
+
+
+	if typ == dynoSampleMsg {
+		// Replace source with dyno and add dynotype specifically for dyno sample msgs
+		if source, ok := lm.metrics["source"]; ok {
+			lm.metrics["dyno"] = lm.metrics["source"]
+			delete(lm.metrics, "source")
+			tags := append(*lm.tags, "dynotype:"+dynoNumber.ReplaceAllString(source.Val, ""))
+			lm.tags = &tags
+		}
 	}
+
 	out <- &lm
 }
 
@@ -121,27 +129,34 @@ func logProcess(in chan *logData, out chan *logMetrics) {
 		if len(headers) < 6 {
 			continue
 		}
-		headers = headers[3:6]
 
+		headers = headers[3:6]
 		log.WithField("headers", headers).Debug("Line headers")
-		if headers[1] == "heroku" {
-			if headers[2] == "router" {
+
+		appName := headers[1]
+		procId := headers[2]
+
+		if appName == "heroku" {
+			if procId == "router" {
+				// Heroku router metrics
 				parseMetrics(routerMsg, data, &output[1], out)
 			} else {
-				parseMetrics(sampleMsg, data, &output[1], out)
+				// Heroku dyno metrics
+				parseMetrics(dynoSampleMsg, data, &output[1], out)
 			}
-		} else if headers[1] == "app" {
-			if headers[2] == "api" {
+		} else if appName == "app" {
+			if procId == "api" {
 				if strings.HasPrefix(output[1], "Release") {
 					parseMetrics(releaseMsg, data, &output[1], out)
 				} else {
 					parseScalingMessage(data, &output[1], out)
 				}
-			} else {
-				dynoType := dynoNumber.ReplaceAllString(headers[2], "")
-				tags := append(*data.tags, "source:"+headers[2], "type:"+dynoType)
-				data.tags = &tags
-				parseMetrics(metricsTag, data, &output[1], out)
+			} else if procId == "heroku-postgres" {
+				// Heroku-provided Postgres metrics
+				parseMetrics(pgSampleMsg, data, &output[1], out)
+			} else if procId == "heroku-redis" {
+				// Heroku-provided Redis metrics
+				parseMetrics(redisSampleMsg, data, &output[1], out)
 			}
 		}
 	}
