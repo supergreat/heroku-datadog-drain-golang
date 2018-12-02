@@ -22,16 +22,33 @@ var fullTests = []struct {
 		cnt: 3,
 		Req: `255 <158>1 2015-04-02T11:52:34.520012+00:00 host heroku router - at=info method=POST path="/users" host=myapp.com request_id=c1806361-2081-42e7-a8aa-92b6808eac8e fwd="24.76.242.18" dyno=web.1 connect=1ms service=37ms status=201 bytes=828`,
 		Expected: []string{
-			"heroku.router.response.bytes:828.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,path:/users,status:201,statusFamily:2xx",
-			"heroku.router.request.connect:1.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,path:/users,status:201,statusFamily:2xx",
-			"heroku.router.request.service:37.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,path:/users,status:201,statusFamily:2xx",
+			"heroku.router.response.bytes:828.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,status:201,statusFamily:2xx",
+			"heroku.router.request.connect:1.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,status:201,statusFamily:2xx",
+			"heroku.router.request.service:37.000000|h|#at:info,dyno:web.1,host:myapp.com,method:POST,status:201,statusFamily:2xx",
 		},
 	},
 	{
-		cnt: 1,
-		Req: `229 <45>1 2015-04-02T11:48:16.839257+00:00 host heroku web.1 - source=web.1 dyno=heroku.35930502.b9de5fce-44b7-4287-99a7-504519070cba sample#load_avg_1m=0.01`,
+		cnt: 2,
+		Req: `229 <45>1 2015-04-02T11:48:16.839257+00:00 host heroku web.1 - source=web.1 dyno=heroku.35930502.b9de5fce-44b7-4287-99a7-504519070cba sample#load_avg_1m=0.01 sample#load-avg-5m=0`,
 		Expected: []string{
-			"heroku.dyno.load.avg.1m:0.010000|g|#source:web.1,type:web",
+			"heroku.dyno.load_avg_1m:0.010000|g|#dyno:web.1,dynotype:web",
+			"heroku.dyno.load_avg_5m:0.000000|g|#dyno:web.1,dynotype:web",
+		},
+	},
+	{
+		cnt: 2,
+		Req: `542 <134>1 2015-04-02T11:47:55+00:00 host app heroku-postgres - source=HEROKU_POSTGRESQL_TEAL sample#memory-free=233092kB sample#load-avg-5m=0`,
+		Expected: []string{
+			"heroku.postgres.memory_free:233092.000000|g|#source:HEROKU_POSTGRESQL_TEAL",
+			"heroku.postgres.load_avg_5m:0.000000|g|#source:HEROKU_POSTGRESQL_TEAL",
+		},
+	},
+	{
+		cnt: 2,
+		Req: `542 <134>1 2015-04-02T11:47:55+00:00 host app heroku-redis - source=REDIS sample#memory-redis=176289040bytes sample#load-avg-5m=0`,
+		Expected: []string{
+			"heroku.redis.memory_redis:176289040.000000|g|#source:REDIS",
+			"heroku.redis.load_avg_5m:0.000000|g|#source:REDIS",
 		},
 	},
 	{
@@ -48,21 +65,6 @@ var fullTests = []struct {
 		Req: `222 <134>1 2015-04-07T16:01:43.517062+00:00 host app api - Release v1 created by foo@bar`,
 		Expected: []string{
 			"_e{13,29}:app/api: test|Release v1 created by foo@bar",
-		},
-	},
-	{
-		cnt: 9,
-		Req: `452 <134>1 2015-04-07T16:01:43.517062+00:00 host app web.1 - info: responseLogger: metric#tag#route=/parser metric#request_id=11747467-f4ce-4b06-8c99-92be968a02e3 metric#request_length=541 metric#response_length=5163 metric#parser_time=5ms metric#eventLoop.count=606 metric#eventLoop.avg_ms=515.503300330033 metric#eventLoop.p50_ms=0.8805309734513275 metric#eventLoop.p95_ms=3457.206896551724 metric#eventLoop.p99_ms=3457.206896551724 metric#eventLoop.max_ms=5008`,
-		Expected: []string{
-			"app.metric.request.length:541.000000|g|#source:web.1,type:web,route:/parser",
-			"app.metric.response.length:5163.000000|g|#source:web.1,type:web,route:/parser",
-			"app.metric.parser.time:5.000000|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.count:606.000000|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.avg.ms:515.503300|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.p50.ms:0.880531|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.p95.ms:3457.206897|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.p99.ms:3457.206897|g|#source:web.1,type:web,route:/parser",
-			"app.metric.eventLoop.max.ms:5008.000000|g|#source:web.1,type:web,route:/parser",
 		},
 	},
 }
