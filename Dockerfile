@@ -1,6 +1,6 @@
 FROM golang:1.11 as builder
 
-ENV APP_VERSION 1.1.0
+ENV APP_VERSION 2.0.0
 
 RUN mkdir -p /usr/src/app
 
