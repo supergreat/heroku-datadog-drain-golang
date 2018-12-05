@@ -22,7 +22,7 @@ const (
 	releaseMsg
 )
 
-var routerMetricsKeys = []string{"dyno", "method", "status", "host", "code", "desc", "at"}
+var routerMetricsKeys = []string{"dyno", "method", "status", "path", "host", "code", "desc", "at"}
 var sampleMetricsKeys = []string{"source", "dyno"}
 var scalingMetricsKeys = []string{"mailer", "web"}
 
